@@ -1,4 +1,5 @@
 defmodule MovieController do
-  import MovieData
-  plug :movie_total
+  alias MovieDataM
+
+  plug MovieDataM, [msg: "Your total number of movies:"] when action in [:index] # pass msg as an option to plug
 end

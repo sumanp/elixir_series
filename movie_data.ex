@@ -1,3 +1,4 @@
+# -- Function Plug --
 # Plug is a specification for composable modules between web applications.
 # At the heart of Plug is the connection, which is represented by the Plug.Conn struct,
 # this contains all the data for a given request.
@@ -14,6 +15,6 @@ defmodule MovieData do
 
   def movie_total(conn, _options) do
     movie_total = Repo.one(from m in Movie, select: count("*"))
-    assign(conn, :movie_total, 3)
+    assign(conn, :movie_total, movie_total)
   end
 end
