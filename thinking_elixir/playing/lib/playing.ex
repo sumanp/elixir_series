@@ -14,6 +14,9 @@ defmodule Playing do
       :world
 
   """
+  # The struct gets the name of the module.
+  defstruct username: nil, email: nil, score: 0
+
   def hello do
     :world
   end
