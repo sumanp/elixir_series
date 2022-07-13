@@ -1,4 +1,6 @@
 defmodule Playing do
+  # alias MyApp.Customers.Orders.Process, as: OrderProcessor
+  # alias MyApp.Customers.Jobs.Process, as: JobProcessor
   @moduledoc """
   Documentation for `Playing`.
   """
@@ -47,4 +49,16 @@ defmodule Playing do
   def process_name(name, func) do
     func.(name)
   end
+
+  def some_function(value \\ :default) do # set default value
+    value
+  end
+
+  def greeting_with_compliment(name, compliment \\ "You look nice today") do
+    "Greetings #{name}! #{compliment}"
+  end
+
+  # Atoms are a significant part of Elixir. In fact, Elixir modules are atoms!
+  # An alias is not an import. It is only a name shortcut.
+
 end
