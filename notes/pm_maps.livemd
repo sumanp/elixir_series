@@ -1,0 +1,179 @@
+# Pattern Matching: Maps
+
+## Code Example
+
+```elixir
+web_params = %{"name" => "John", "email" => "john@example.com"}
+
+defmodule Testing do
+  def do_work(%{"email" => email} = params) do
+    IO.inspect(email)
+    IO.inspect(params)
+    "Sent an email to #{email} addressed to #{params["name"]}"
+  end
+end
+
+Testing.do_work(web_params)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"john@example.com"
+%{"email" => "john@example.com", "name" => "John"}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"Sent an email to john@example.com addressed to John"
+```
+
+What’s special here is that we are pattern matching for some data we care about and still binding everything passed in as params.
+
+This is a common code pattern. You can use this same approach everywhere you pattern match. It works in case statements and even in a straight forward match expression. Check this out:
+
+```elixir
+%{"email" => email} = params = %{"name" => "John", "email" => "john@example.com"}
+
+email
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+"john@example.com"
+```
+
+```elixir
+params
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+%{"email" => "john@example.com", "name" => "John"}
+```
+
+The match operator performs a Pattern Match of the left and right sides. When we say params by itself, we haven’t defined a type or a data shape so it just gets bound.
+
+<!-- livebook:{"break_markdown":true} -->
+
+We still bind everything to the variable params but we also define the pattern (data type and shape) which also pulls out the data we care most about.
+
+<!-- livebook:{"break_markdown":true} -->
+
+I want to Pattern Match and access a portion of the data when it is passed in, but I still want the full customer data because I pass it on to another function called notify_customer.
+
+```elixir
+# defmodule Billing do
+#   def apply_charge(%{id: customer_id} = customer, charge) do
+#     record_charge(customer_id, charge)
+#     notify_customer(customer, charge)
+#   end
+# end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+nil
+```
+
+## Still Naming for Clarity
+
+You’ve seen how we can name an argument for developer clarity and documentation reasons using the underscore prefix like _customer. We can do that when matching map arguments. When I don’t need the full data structure, it still adds value to name it for developer clarity and expressing the intent of the function.
+
+```elixir
+defmodule Testing do
+  def do_work(%{"email" => email} = _customer_params) do
+    # use `email`
+  end
+end
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+warning: variable "email" is unused (if the variable is not meant to be used, prefix it with an underscore)
+  /Users/pi/liveBooks/pm_maps.livemd#cell:2: Testing.do_work/1
+
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+{:module, Testing, <<70, 79, 82, 49, 0, 0, 5, ...>>, {:do_work, 1}}
+```
+
+Having the argument named _customer_params conveys meaning for what the developer was expecting to be passed in. That meaning may not be clear from just looking at a function declaration that says, “do_work(%{"email" => email}) do“. A map with an email string key could be for a user, customer, a login, or something else.
+
+## Binding to a Nested Map
+
+Maps are the go-to data structure for key-value data. They also elegantly handle nested data. When pattern matching, it is important to understand that you can also easily bind to a nested map. This can be very handy when working with web requests, and actually gets used frequently.
+
+```elixir
+params = %{
+  "customer" => %{
+    "id" => 123,
+    "name" => "Willy Wonka Chocolates",
+    "bonuses" => %{
+      "employees" => %{
+        "Oompa 1" => 1_000,
+        "Oompa 2" => 2_000,
+        "Hillary" => 1_500,
+        "Oompa 3" => 500
+      },
+      "total" => 5_000
+    }
+  }
+}
+
+defmodule NestedBinding do
+  def award_bonuses(
+        %{"customer" => %{"bonuses" => %{"total" => bonus_total} = bonuses}} = _params
+      ) do
+    IO.inspect(bonus_total, label: "TOTAL TO VALIDATE")
+    IO.inspect(bonuses, label: "BONUSES")
+    # TODO: vnalidate intended total and employee amounts
+    :ok
+  end
+end
+
+NestedBinding.award_bonuses(params)
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+TOTAL TO VALIDATE: 5000
+BONUSES: %{
+  "employees" => %{
+    "Hillary" => 1500,
+    "Oompa 1" => 1000,
+    "Oompa 2" => 2000,
+    "Oompa 3" => 500
+  },
+  "total" => 5000
+}
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+:ok
+```
+
+```elixir
+# %{"customer" => %{"bonuses" => %{"total" => bonus_total} = bonuses}} = _params
+```
+
+<!-- livebook:{"output":true} -->
+
+```
+nil
+```
+
+Pattern is where we are focusing. Notice that we can bind to a deeply nested map to get the bonus_total and bind a variable to the full bonuses map at the same time!
+
+The ability to bind to a nested piece of data works on all data types. However, it is most helpful when working with maps, primarily because maps tend to have nested data more than other data types.

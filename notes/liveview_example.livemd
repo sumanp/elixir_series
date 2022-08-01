@@ -1,0 +1,241 @@
+# LiveView Example
+
+## Create a new LiveView route & module
+
+1. Create a new LiveView route
+
+```elixir
+scope "/", PlaytoWeb do
+  pipe_through(:browser)
+
+  get("/", PageController, :index)
+  live("/courses", CoursesLive)
+end
+```
+
+1. Create a new LiveView module under app_web/live/courses_live.ex
+
+```elixir
+defmodule PlaytoWeb.CoursesLive do
+  use PlaytoWeb, :live_view
+end
+```
+
+All the good stuff we need to be able to create a LiveView gets pulled in by use PlaytoWeb, :live_view.
+
+## Define mount
+
+A LiveView module needs to define three callback functions:
+
+1. mount assigns the initial state of the LiveView process
+2. handle_event changes the state of the process
+3. and render renders a new view for the newly-updated state
+
+<!-- livebook:{"break_markdown":true} -->
+
+The mount callback takes three arguments:
+
+1. params is a map containing the current query params, as well as any router parameters
+2. session is a map containing private session data
+3. socket is a struct representing the websocket connection
+
+```elixir
+def mount(_params, _session, socket) do
+  socket = assign(socket, :brightness, 10)
+  {:ok, socket}
+end
+```
+
+Calling assign this way returns a new socket struct with :brightness set to 10. And mount must return an :ok tuple with the new socket.
+
+Rather than using the temporary socket variable you’ll often see it inlined like this:
+
+```elixir
+def mount(_params, _session, socket) do
+  {:ok, assign(socket, :brightness, 10)}
+end
+```
+
+Notice we passed the key and value as separate arguments to assign, but if you had multiple key/value pairs you would pass a keyword list.
+
+## Define render
+
+```elixir
+def render(assigns) do
+  ~L"""
+  """
+end
+```
+
+The render function takes assigns which is the map of key/value pairs we assigned to the socket in mount. The one-and-only job of render is to return rendered content, which we create using a LiveView template.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Inside the template we can access the current brightness value using @brightness and interpolate it in an EEx tag:
+
+```elixir
+def render(assigns) do
+  ~L"""
+  <h1>Front Porch Light</h1>
+  <div class="meter">
+    <span style="width: <%= @brightness %>%">
+      <%= @brightness %>%
+    </span>
+  </div>
+  """
+end
+```
+
+```elixir
+# CSS
+.meter {
+  display: flex;
+  overflow: hidden;
+  background-color: #e2e8f0;
+  border-radius: 0.75rem;
+  margin-bottom: 2rem;
+  height: 4rem;
+
+  span {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #faf089;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 700;
+    font-size: 1.5rem;
+    transition: width 2s ease;
+  }
+}
+```
+
+Add buttons to switch the brightness on and off
+
+## Make It Interactive: On and Off Buttons
+
+```elixir
+<button phx-click="off">
+  Off
+</button>
+
+<button phx-click="on">
+  On
+</button>
+```
+
+LiveView refers to the phx-click attribute (and others like it) as a binding. It binds a click event to the button so when it’s clicked the event is sent via the websocket to the LightLive process.
+
+## Handle On and Off Events
+
+Then to handle those inbound events, we need to define matching handle_event callbacks. We’ll start by handling the on event:
+
+```elixir
+def handle_event("on", _, socket) do
+  socket = assign(socket, :brightness, 100)
+  {:noreply, socket}
+end
+```
+
+The handle_event callback takes three arguments:
+
+1. the name of the event (on in this case)
+2. metadata related to the event which we’ll ignore
+3. the socket which, remember, has the current state of our live view assigned to it
+
+```elixir
+def handle_event("off", _, socket) do
+  socket = assign(socket, :brightness, 0)
+  {:noreply, socket}
+end
+```
+
+## Dim the Lights
+
+```elixir
+<button phx-click="down">
+  Down
+</button>
+
+<button phx-click="up">
+  Up
+</button>
+```
+
+Then we need to handle those two inbound events. The down event will dial back the brightness by 10 and the up event will bump up the brightness by 10.
+
+<!-- livebook:{"break_markdown":true} -->
+
+To do that, the respective handle_event callbacks need to access the current brightness value. And since the socket struct holds the current state of a LiveView process, we can get the current brightness value using socket.assigns.brightness. So the handlers look like this:
+
+```elixir
+def handle_event("down", _, socket) do
+  brightness = socket.assigns.brightness - 10
+  socket = assign(socket, :brightness, brightness)
+  {:noreply, socket}
+end
+
+def handle_event("up", _, socket) do
+  brightness = socket.assigns.brightness + 10
+  socket = assign(socket, :brightness, brightness)
+  {:noreply, socket}
+end
+```
+
+That works, but there’s a convenient shortcut. When updating a value, we can use the update function, like so:
+
+```elixir
+def handle_event("down", _, socket) do
+  socket = update(socket, :brightness, fn b -> b - 10 end)
+  {:noreply, socket}
+end
+
+def handle_event("up", _, socket) do
+  socket = update(socket, :brightness, fn b -> b + 10 end)
+  {:noreply, socket}
+end
+```
+
+Notice that update takes a function as its third argument. That function receives the current key’s value (the brightness value in this case) and returns an updated value which is then assigned to the key in the socket. Thus, the value is updated.
+
+<!-- livebook:{"break_markdown":true} -->
+
+You can make this more concise using the Elixir shorthand capture syntax:
+
+```elixir
+def handle_event("down", _, socket) do
+  socket = update(socket, :brightness, &(&1 - 10))
+  {:noreply, socket}
+end
+
+def handle_event("up", _, socket) do
+  socket = update(socket, :brightness, &(&1 + 10))
+  {:noreply, socket}
+end
+```
+
+For bonus points, you could limit how high or low the light can go by using max and min:
+
+```elixir
+def handle_event("down", _, socket) do
+  socket = update(socket, :brightness, &max(&1 - 10, 0))
+  {:noreply, socket}
+end
+
+def handle_event("up", _, socket) do
+  socket = update(socket, :brightness, &min(&1 + 10, 100))
+  {:noreply, socket}
+end
+```
+
+## Enabling debugging
+
+LiveView has a built-in way to see what’s on the wire. In assets/js/app.js it exposes the liveSocket instance on window:
+
+`window.liveSocket = liveSocket;`
+So if you open the “Console” tab in the browser’s devtools, you can turn on debugging like so:
+
+`liveSocket.enableDebug()`
+When you enable debugging, a flag is dropped in the browser’s sessionStorage so debugging stays enabled for the duration of the browser session.
+
+As you probably guessed, you can disable debugging using `disableDebug()`.
